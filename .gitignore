@@ -1,0 +1,16 @@
+# private
+*.pem
+
+# originals, kept on this computer only (build_site.py reads Web_site/)
+Web_site/
+new_site_orig/
+*.zip
+
+# greyhound videos live on Google Drive (see build/drive_videos.txt)
+*.mp4
+
+# old EC2 hosting, retired once the site moves to GitHub Pages
+build/deploy.sh
+build/server/
+
+__pycache__/

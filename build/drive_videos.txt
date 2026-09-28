@@ -1,0 +1,17 @@
+# Greyhound videos hosted on Google Drive (shared as "Anyone with the link").
+# One per line: the file name, then its Drive share link. Videos without a link are copied into the site.
+keen-one-13th-win.mp4  
+keen-one-eighth-win.mp4  
+keen-one-eleventh-win.mp4  
+keen-one-first-win.mp4  
+keen-one-fourth-win.mp4  
+keen-one-johnnys-fifth-win.mp4  
+keen-one-johnnys-seventh-win.mp4  
+keen-one-johnnys-sixth-win.mp4  
+keen-one-murray-bridge-win.mp4  
+keen-one-ninth-win-formula-400.mp4  
+keen-one-second-win.mp4  
+keen-one-tenth-win.mp4  
+keen-one-third-win.mp4  
+zeenat-race-11-mount-gambier-26-dec-2019.mp4  
+zeenat-win-replay-30-dec-2019.mp4  
