@@ -100,6 +100,18 @@ def resolve(base_dir, href):
 _IMG_INDEX = None
 
 
+# Images the old pages use under a name the file no longer has.
+IMAGE_RENAMES = {"dogs.jpg": "the dogs.jpg"}
+
+# Images the old pages use that aren't anywhere in Web_site/ (lost before the download); left out quietly.
+LOST_IMAGES = {"mal & christ on trikes.jpg", "malcolmjulianshrink.jpg", "billcakecutting.jpg", "jimjules.jpg",
+               "mal_ bike_web.jpg", "maljulianyasmine.jpg", "grandpa&grandma.jpg"}
+
+
+def image_name(src):
+    return unquote(urlsplit(src).path).replace("\\", "/").rsplit("/", 1)[-1].lower()
+
+
 def find_image(src):
     """Fallback for pages whose image paths broke when folders were moved: match by file name."""
     global _IMG_INDEX
@@ -108,7 +120,8 @@ def find_image(src):
         for p in sorted(SRC.rglob("*")):
             if p.suffix.lower() in IMG_EXT and "_vti" not in str(p):
                 _IMG_INDEX.setdefault(p.name.lower(), p)
-    name = unquote(urlsplit(src).path).replace("\\", "/").rsplit("/", 1)[-1].lower()
+    name = image_name(src)
+    name = IMAGE_RENAMES.get(name, name)
     return _IMG_INDEX.get(name) if name else None
 
 
@@ -322,7 +335,7 @@ class Cleaner(HTMLParser):
         src = a.get("src", "")
         target = resolve(self.base_dir, src) or find_image(src)
         if target is None:
-            if src and not src.startswith("http"):
+            if src and not src.startswith("http") and image_name(src) not in LOST_IMAGES:
                 warn(f"missing image '{unquote(src)}' in {self.base_dir.relative_to(SRC)}")
             return ""
         if target.suffix.lower() not in IMG_EXT or self.drop_image(target):
