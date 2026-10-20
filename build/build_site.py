@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Rebuild the old FrontPage/Word malcolmandnuran.com site as a clean modern static site.
 
-Reads from ../Web_site (left untouched) plus new tales in build/tales, and writes ../new_site.
+Reads from ../Web_site (left untouched) plus new tales in build/tales and new recipes in build/recipes,
+and writes ../new_site.
 Re-runnable: the output folder is wiped and regenerated each time.
 """
 import hashlib
@@ -24,6 +25,7 @@ OLD = SRC / "old web files"
 OUT = PROJECT / "new_site"
 ASSETS = HERE / "assets"
 NEW_TALES = HERE / "tales"
+NEW_RECIPES = HERE / "recipes"
 DRIVE_VIDEOS = HERE / "drive_videos.txt"
 DOMAIN = "www.malcolmandnuran.com"
 
@@ -565,6 +567,16 @@ def build_tales(link_map):
     return vols
 
 
+def read_txt(p, required):
+    """A build/tales or build/recipes .txt file: 'key: value' header lines, a blank line, then the body."""
+    head, _, body = p.read_text(encoding="utf-8").partition("\n\n")
+    meta = dict(line.split(":", 1) for line in head.splitlines() if ":" in line)
+    meta = {k.strip().lower(): v.strip() for k, v in meta.items()}
+    if not all(meta.get(k) for k in required):
+        sys.exit(f"{p.name}: needs {' and '.join(repr(k + ':') for k in required)} lines at the top")
+    return meta, body
+
+
 def new_tales():
     """Tales written since the move to GitHub: build/tales/*.txt, oldest first by date.
 
@@ -574,10 +586,8 @@ def new_tales():
     """
     tales = []
     for p in sorted(NEW_TALES.glob("*.txt")):
-        head, _, body = p.read_text(encoding="utf-8").partition("\n\n")
-        meta = dict(line.split(":", 1) for line in head.splitlines() if ":" in line)
-        meta = {k.strip().lower(): v.strip() for k, v in meta.items()}
-        if not meta.get("title") or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", meta.get("date", "")):
+        meta, body = read_txt(p, ("title", "date"))
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", meta["date"]):
             sys.exit(f"{p.name}: needs 'title:' and 'date: YYYY-MM-DD' lines at the top")
         y, mo, d = (int(x) for x in meta["date"].split("-"))
         tales.append(dict(src=p, title=meta["title"], date=f"{d} {MONTHS[mo - 1]} {y}",
@@ -605,6 +615,9 @@ def text_to_html(text, base_dir):
             out.append(f'<p><a class="photo" href="@ROOT@{r["full"]}"{f" data-caption=\"{esc(cap)}\"" if cap else ""}>'
                        f'<img src="@ROOT@{r["med"]}" width="{r["w"]}" height="{r["h"]}" alt="{esc(cap)}" '
                        f'loading="lazy" decoding="async"></a></p>')
+        elif all(line.lstrip().startswith("- ") for line in block.strip().splitlines()):
+            out.append("<ul>" + "".join(f"<li>{inline(line.lstrip()[2:].strip())}</li>"
+                                        for line in block.strip().splitlines()) + "</ul>")
         else:
             out.append("<p>" + "<br>".join(inline(line) for line in block.strip().splitlines()) + "</p>")
     return "\n".join(out), imgs
@@ -686,6 +699,12 @@ def build_recipes(link_map):
             warn(f"recipe link missing: {val}")
             continue
         cats[-1]["items"].append(dict(src=p, title=text))
+    for r in new_recipes():
+        c = next((c for c in cats if slugify(c["name"]) == slugify(r["category"])), None)
+        if c is None:
+            c = dict(name=r["category"], items=[])
+            cats.append(c)
+        c["items"].append(r)
     used = set()
     for c in cats:
         for r in c["items"]:
@@ -702,7 +721,10 @@ def build_recipes(link_map):
 
     for c in cats:
         for i, r in enumerate(c["items"]):
-            content, imgs = clean_html(read(r["src"]), r["src"].parent, link_map, title=r["title"])
+            if "text" in r:
+                content, imgs = text_to_html(r["text"], r["src"].parent)
+            else:
+                content, imgs = clean_html(read(r["src"]), r["src"].parent, link_map, title=r["title"])
             r["img"] = imgs[0] if imgs else None
             page = (f'<article class="wrap narrow prose recipe"><header class="page-head">'
                     f'<p class="kicker"><a href="@ROOT@recipes/index.html#{slugify(c["name"])}">Nuran\'s Recipes · {esc(c["name"])}</a></p>'
@@ -734,6 +756,20 @@ def build_recipes(link_map):
     render("recipes/index.html", "Nuran's Recipes", "".join(parts), section="recipes/index.html",
            description="Nuran's family recipes – curries, mains, sauces, pies, salads and sweets.")
     return kitchen, sum(len(c["items"]) for c in cats)
+
+
+def new_recipes():
+    """Recipes added since the move to GitHub: build/recipes/*.txt, in file-name order.
+
+    Each file starts with 'title:' and 'category:' lines (a category from the recipes page, e.g. Sweets;
+    a new name makes a new category), then a blank line, then the recipe written as for tales.
+    A paragraph whose lines all start with '- ' becomes a bulleted list.
+    """
+    recipes = []
+    for p in sorted(NEW_RECIPES.glob("*.txt")):
+        meta, body = read_txt(p, ("title", "category"))
+        recipes.append(dict(src=p, title=meta["title"], category=meta["category"], text=body))
+    return recipes
 
 
 GREY_ORDER = ["first win", "second win", "third win", "fourth win", "johnnys fifth win", "johnny sixth win",
